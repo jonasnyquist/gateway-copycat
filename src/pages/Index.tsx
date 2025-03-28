@@ -1,13 +1,56 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import { useState } from 'react';
+import { ApiProvider } from '../contexts/ApiContext';
+import { useApi } from '../contexts/ApiContext';
+import { Gateway } from '../services/gatewayService';
+import LoginForm from '../components/LoginForm';
+import GatewayList from '../components/GatewayList';
+import GatewayDetail from '../components/GatewayDetail';
+
+const GatewayManager = () => {
+  const { isAuthenticated } = useApi();
+  const [selectedGateway, setSelectedGateway] = useState<Gateway | null>(null);
+
+  const handleSelectGateway = (gateway: Gateway) => {
+    setSelectedGateway(gateway);
+  };
+
+  const handleBackToList = () => {
+    setSelectedGateway(null);
+  };
+
+  const handleRefreshList = () => {
+    setSelectedGateway(null);
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <LoginForm />
+      </div>
+    );
+  }
+
+  return (
+    <div className="container py-6 space-y-6">
+      {selectedGateway ? (
+        <GatewayDetail 
+          gateway={selectedGateway} 
+          onBack={handleBackToList}
+          onRefresh={handleRefreshList}
+        />
+      ) : (
+        <GatewayList onSelectGateway={handleSelectGateway} />
+      )}
+    </div>
+  );
+};
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <ApiProvider>
+      <GatewayManager />
+    </ApiProvider>
   );
 };
 
