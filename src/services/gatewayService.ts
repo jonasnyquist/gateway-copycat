@@ -1,144 +1,135 @@
 
+import { useEffect, useState } from 'react';
+import { useApi } from '../contexts/ApiContext';
 import { toast } from "sonner";
 
 export interface Gateway {
   uid: string;
   name: string;
-  type: string;
-  ipv4_address: string;
-  sic_state?: string;
-  version?: string;
-  os_name?: string;
-  hardware?: string;
-  interfaces?: any[];
+  type?: string;
   domain?: {
-    name: string;
     domain_type: string;
+    name: string;
+    uid: string;
   };
+  policy?: {
+    access: boolean;
+    threat: boolean;
+  };
+  version?: string;
+  ipv4_address?: string;
+  os_name?: string;
+  interfaces?: any[];
+  firewall_settings?: any;
   [key: string]: any;
 }
 
-export const fetchGateways = async (serverUrl: string, sessionId: string): Promise<Gateway[]> => {
-  try {
-    const response = await fetch(`${serverUrl}/web_api/show-gateways-and-servers`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-chkp-sid': sessionId
-      },
-      body: JSON.stringify({
-        "details-level": "full"
-      }),
-    });
+export const useGateways = (refreshTrigger = 0) => {
+  const { serverUrl, sessionId } = useApi();
+  const [gateways, setGateways] = useState<Gateway[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    const data = await response.json();
-
-    if (data.objects) {
-      return data.objects;
-    } else {
-      throw new Error(data.message || "Failed to fetch gateways");
+  const fetchGateways = async () => {
+    if (!serverUrl || !sessionId) {
+      setError("API connection not established");
+      return;
     }
-  } catch (error) {
-    console.error('Error fetching gateways:', error);
-    throw error;
-  }
-};
 
-export const fetchGatewayDetails = async (
-  serverUrl: string, 
-  sessionId: string, 
-  uid: string
-): Promise<Gateway> => {
-  try {
-    const response = await fetch(`${serverUrl}/web_api/show-gateway`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-chkp-sid': sessionId
-      },
-      body: JSON.stringify({
-        uid,
-        "details-level": "full"
-      }),
-    });
+    setLoading(true);
+    setError(null);
 
-    const data = await response.json();
+    try {
+      const response = await fetch(`${serverUrl}/web_api/show-simple-gateways`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-chkp-sid': sessionId
+        },
+        body: JSON.stringify({
+          details_level: "full",
+          limit: 100
+        }),
+      });
 
-    if (data.object) {
-      return data.object;
-    } else {
-      throw new Error(data.message || "Failed to fetch gateway details");
+      const data = await response.json();
+
+      if (data.objects) {
+        setGateways(data.objects);
+      } else {
+        setError(data.message || "Failed to fetch gateways");
+        toast.error(data.message || "Failed to fetch gateways");
+      }
+    } catch (error) {
+      console.error('Gateway fetch error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(errorMessage);
+      toast.error(`Failed to fetch gateways: ${errorMessage}`);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Error fetching gateway details:', error);
-    throw error;
-  }
-};
-
-export const cloneGateway = async (
-  serverUrl: string, 
-  sessionId: string, 
-  originalGateway: Gateway, 
-  newName: string,
-  newIpv4Address: string
-): Promise<Gateway> => {
-  // Create clone object, removing read-only fields
-  const { uid, ...gatewayWithoutUid } = originalGateway;
-  
-  // Prepare the clone data
-  const cloneData = {
-    ...gatewayWithoutUid,
-    name: newName,
-    ipv4_address: newIpv4Address,
   };
-  
-  try {
-    // Create the cloned gateway
-    const response = await fetch(`${serverUrl}/web_api/add-simple-gateway`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-chkp-sid': sessionId
-      },
-      body: JSON.stringify(cloneData),
-    });
 
-    const data = await response.json();
-
-    if (data.uid) {
-      toast.success(`Gateway '${newName}' created successfully`);
-      return data;
-    } else {
-      throw new Error(data.message || "Failed to clone gateway");
+  useEffect(() => {
+    if (sessionId) {
+      fetchGateways();
     }
-  } catch (error) {
-    console.error('Error cloning gateway:', error);
-    throw error;
-  }
+  }, [sessionId, refreshTrigger]);
+
+  return { gateways, loading, error, refetch: fetchGateways };
 };
 
-export const publishChanges = async (serverUrl: string, sessionId: string): Promise<boolean> => {
-  try {
-    const response = await fetch(`${serverUrl}/web_api/publish`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-chkp-sid': sessionId
-      },
-      body: JSON.stringify({}),
-    });
+export const useGatewayDetails = (uid: string) => {
+  const { serverUrl, sessionId } = useApi();
+  const [gateway, setGateway] = useState<Gateway | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    const data = await response.json();
-
-    if (data.task_id) {
-      toast.success("Changes published successfully");
-      return true;
-    } else {
-      throw new Error(data.message || "Failed to publish changes");
+  const fetchGatewayDetails = async () => {
+    if (!serverUrl || !sessionId) {
+      setError("API connection not established");
+      return;
     }
-  } catch (error) {
-    console.error('Error publishing changes:', error);
-    toast.error("Failed to publish changes");
-    return false;
-  }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${serverUrl}/web_api/show-simple-gateway`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-chkp-sid': sessionId
+        },
+        body: JSON.stringify({
+          uid: uid,
+          details_level: "full"
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.uid) {
+        setGateway(data);
+      } else {
+        setError(data.message || "Failed to fetch gateway details");
+        toast.error(data.message || "Failed to fetch gateway details");
+      }
+    } catch (error) {
+      console.error('Gateway details fetch error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(errorMessage);
+      toast.error(`Failed to fetch gateway details: ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (sessionId && uid) {
+      fetchGatewayDetails();
+    }
+  }, [sessionId, uid]);
+
+  return { gateway, loading, error, refetch: fetchGatewayDetails };
 };

@@ -10,6 +10,7 @@ import GatewayDetail from '../components/GatewayDetail';
 const GatewayManager = () => {
   const { isAuthenticated } = useApi();
   const [selectedGateway, setSelectedGateway] = useState<Gateway | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleSelectGateway = (gateway: Gateway) => {
     setSelectedGateway(gateway);
@@ -21,6 +22,7 @@ const GatewayManager = () => {
 
   const handleRefreshList = () => {
     setSelectedGateway(null);
+    setRefreshTrigger(prev => prev + 1);
   };
 
   if (!isAuthenticated) {
@@ -40,7 +42,10 @@ const GatewayManager = () => {
           onRefresh={handleRefreshList}
         />
       ) : (
-        <GatewayList onSelectGateway={handleSelectGateway} />
+        <GatewayList 
+          onSelectGateway={handleSelectGateway} 
+          refreshTrigger={refreshTrigger}
+        />
       )}
     </div>
   );
