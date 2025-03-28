@@ -1,15 +1,12 @@
 
 import { useState } from 'react';
 import { useApi } from '../contexts/ApiContext';
-import { Gateway, cloneGateway, publishChanges } from '../services/gatewayService';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Gateway, useGatewayDetails } from '../services/gatewayService';
+import GatewayHeader from './GatewayHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Copy, RefreshCw } from "lucide-react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface GatewayDetailProps {
   gateway: Gateway;
@@ -18,108 +15,11 @@ interface GatewayDetailProps {
 }
 
 const GatewayDetail = ({ gateway, onBack, onRefresh }: GatewayDetailProps) => {
-  const { serverUrl, sessionId } = useApi();
-  const [newName, setNewName] = useState('');
-  const [newIp, setNewIp] = useState('');
-  const [isCloning, setIsCloning] = useState(false);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const handleClone = async () => {
-    if (!sessionId || !serverUrl) {
-      toast.error("Not authenticated");
-      return;
-    }
-
-    if (!newName || !newIp) {
-      toast.error("Name and IP address are required");
-      return;
-    }
-
-    setIsCloning(true);
-    try {
-      await cloneGateway(serverUrl, sessionId, gateway, newName, newIp);
-      await publishChanges(serverUrl, sessionId);
-      setIsDialogOpen(false);
-      onRefresh();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to clone gateway");
-    } finally {
-      setIsCloning(false);
-    }
-  };
-
-  // Initialize clone form with suggested values
-  const initializeCloneForm = () => {
-    setNewName(`Copy_of_${gateway.name}`);
-    setNewIp('');
-    setIsDialogOpen(true);
-  };
+  const { refetch } = useGatewayDetails(gateway.uid);
 
   return (
     <Card className="w-full">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="outline" size="icon" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <CardTitle>{gateway.name}</CardTitle>
-        </div>
-        <div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button 
-                onClick={initializeCloneForm}
-                className="bg-checkpoint-600 hover:bg-checkpoint-700"
-              >
-                <Copy className="mr-2 h-4 w-4" />
-                Clone Gateway
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Clone Gateway</DialogTitle>
-                <DialogDescription>
-                  Create a copy of this gateway with a new name and IP address.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="clone-name">New Gateway Name</Label>
-                  <Input
-                    id="clone-name"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="Enter new gateway name"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="clone-ip">New IP Address</Label>
-                  <Input
-                    id="clone-ip"
-                    value={newIp}
-                    onChange={(e) => setNewIp(e.target.value)}
-                    placeholder="Enter new IP address"
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button 
-                  onClick={handleClone} 
-                  disabled={isCloning}
-                  className="bg-checkpoint-600 hover:bg-checkpoint-700"
-                >
-                  {isCloning ? 
-                    <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Cloning...</> : 
-                    'Clone Gateway'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </CardHeader>
+      <GatewayHeader gateway={gateway} onBack={onBack} onRefresh={onRefresh} />
       <CardContent>
         <Tabs defaultValue="general">
           <TabsList className="mb-4">
@@ -240,8 +140,5 @@ const GatewayDetail = ({ gateway, onBack, onRefresh }: GatewayDetailProps) => {
     </Card>
   );
 };
-
-// Import Table components for interfaces
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export default GatewayDetail;

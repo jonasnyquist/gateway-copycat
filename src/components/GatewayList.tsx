@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from 'react';
 import { useApi } from '../contexts/ApiContext';
-import { fetchGateways, Gateway } from '../services/gatewayService';
+import { Gateway, useGateways } from '../services/gatewayService';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,34 +11,14 @@ import { toast } from "sonner";
 
 interface GatewayListProps {
   onSelectGateway: (gateway: Gateway) => void;
+  refreshTrigger: number; // Add this property to the interface
 }
 
-const GatewayList = ({ onSelectGateway }: GatewayListProps) => {
+const GatewayList = ({ onSelectGateway, refreshTrigger }: GatewayListProps) => {
   const { serverUrl, sessionId, logout } = useApi();
-  const [gateways, setGateways] = useState<Gateway[]>([]);
+  const { gateways, loading: isLoading, error, refetch: loadGateways } = useGateways(refreshTrigger);
   const [filteredGateways, setFilteredGateways] = useState<Gateway[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  const loadGateways = async () => {
-    if (!sessionId || !serverUrl) return;
-    
-    setIsLoading(true);
-    try {
-      const data = await fetchGateways(serverUrl, sessionId);
-      setGateways(data);
-      setFilteredGateways(data);
-    } catch (error) {
-      toast.error("Failed to fetch gateways");
-      console.error(error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadGateways();
-  }, [sessionId, serverUrl]);
 
   useEffect(() => {
     if (searchTerm.trim() === '') {
@@ -48,7 +28,7 @@ const GatewayList = ({ onSelectGateway }: GatewayListProps) => {
       const filtered = gateways.filter(
         gateway => 
           gateway.name.toLowerCase().includes(term) || 
-          gateway.ipv4_address.toLowerCase().includes(term)
+          (gateway.ipv4_address && gateway.ipv4_address.toLowerCase().includes(term))
       );
       setFilteredGateways(filtered);
     }
